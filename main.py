@@ -5,16 +5,13 @@ import logging
 import random
 from datetime import datetime
 from collections import Counter
+import threading
 
-try:
-    from telegram import Bot
-    from telegram.constants import ParseMode
-except ImportError:
-    print("Error: python-telegram-bot module not installed.")
-    print("Run: pip install python-telegram-bot==20.3")
-    exit(1)
+from flask import Flask
+from telegram import Bot
+from telegram.constants import ParseMode
 
-# --- Configuration (Your Updated Credentials) ---
+# --- Configuration ---
 BOT_TOKEN = "8421396575:AAHTcG-fNAp6r1iq9yg-xMhNL-jWgVHPRcY"
 CHANNEL_USERNAME = "-1003723520077"
 
@@ -23,7 +20,6 @@ WIN_STICKER = "CAACAgUAAxkBAAEC4G9pifQIzVJ60qpe_n0aZRqPjOqXfgACXxoAAo_FYFaOLtZ5d
 LOSS_STICKER = "CAACAgUAAxkBAAEC4INpifhHjjiCUzXA_Z87dWdNqXtEkAACNxYAAqXy8Fbys0mlir6tpzoE"
 JACKPOT_STICKER = "CAACAgUAAxkBAAEC4JNpijzPzEMqyQP-MnWjPR9LOSrnggAC-RQAAhjt6VegzLnRRkH9azoE"
 
-# API URL
 API_URL = "https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json"
 
 # Global variables
@@ -37,19 +33,15 @@ jackpot_count = 0
 loss_count = 0
 loss_streak = 0
 
-# 🔥 ১-স্টেপ আল্ট্রা রিকভারি প্রগ্রেশন
 bet_progression = [10, 35, 115, 380]
-
-# শেষ ১০টি সিগন্যালের রেকর্ড ট্র্যাকিং
 recent_signals_history = []
 
-# Logging setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 bot = Bot(token=BOT_TOKEN)
 
-# --- 🎯 Ultra Advanced Data-Mining Prediction Logic ---
+# --- Prediction Functions ---
 def predict_ultra_win_rate(history):
     if not history or len(history) < 10:
         return 'BIG', "92%", "AI Turbo Engine"
@@ -57,30 +49,25 @@ def predict_ultra_win_rate(history):
     last_10_sizes = ['BIG' if n >= 5 else 'SMALL' for n in history[:10]]
     last_4_sizes = last_10_sizes[:4]
     
-    # ফিচার ১: অ্যাডভান্সড ড্রাগন চেসার
     if last_4_sizes == ['BIG', 'BIG', 'BIG', 'BIG']:
         return 'BIG', f"{random.randint(96, 99)}%", "🐉 ULTRA DRAGON RUN"
     if last_4_sizes == ['SMALL', 'SMALL', 'SMALL', 'SMALL']:
         return 'SMALL', f"{random.randint(96, 99)}%", "🐉 ULTRA DRAGON RUN"
         
-    # ফিচার ২: মিরর বা জিগজ্যাগ ব্রেকার ফিল্টার
     if last_10_sizes[:3] == ['BIG', 'SMALL', 'BIG']:
         return 'SMALL', f"{random.randint(92, 96)}%", "⚡ MIRROR PATTERN BREAK"
     if last_10_sizes[:3] == ['SMALL', 'BIG', 'SMALL']:
         return 'BIG', f"{random.randint(92, 96)}%", "⚡ MIRROR PATTERN BREAK"
         
-    # ফিচার ৩: রেশিও এবং ডমিনেন্স এনালাইসিস
     big_count = last_10_sizes.count('BIG')
     if big_count >= 7:
         return 'SMALL', f"{random.randint(94, 97)}%", "📉 OVERBOUGHT CORRECTION"
     elif big_count <= 3:
         return 'BIG', f"{random.randint(94, 97)}%", "📈 OVERSOLD CORRECTION"
         
-    # ফিচার ৪: শর্ট মোメントাম আল্ট্রা স্পিড ফলো
     next_pred = 'BIG' if history[0] >= 5 else 'SMALL'
     return next_pred, f"{random.randint(90, 94)}%", "🚀 INSTANT SPEED MOMENTUM"
 
-# --- 🔮 Hot & Cold Combined Jackpot Number Generator ---
 def generate_hot_and_cold_numbers(prediction, history):
     pool = [5, 6, 7, 8, 9] if prediction == 'BIG' else [0, 1, 2, 3, 4]
     if not history:
@@ -100,9 +87,7 @@ def generate_hot_and_cold_numbers(prediction, history):
     
     return sorted([hot_number, cold_number])
 
-# --- Messenger Functions ---
 async def send_signal_to_channel(period, prediction, numbers, bet_amount, win_rate, pattern_info):
-    # বিশ্বের সেরা ডিজাইনের লাক্সারি টেমপ্লেট
     message = f"""
 ✨ <b>TK CLUB GLOBAL VIP BOT (V7)</b> ✨
 💎 <i>The Ultimate Wingo Auto-Signal System</i>
@@ -151,7 +136,6 @@ async def send_10_games_report():
 """
     try:
         sent_message = await bot.send_message(chat_id=CHANNEL_USERNAME, text=report_msg, parse_mode=ParseMode.HTML)
-        # অটো পিন ফিচার
         await bot.pin_chat_message(chat_id=CHANNEL_USERNAME, message_id=sent_message.message_id, disable_notification=False)
     except Exception as e:
         logger.error(f"Error sending/pinning history report: {e}")
@@ -168,12 +152,9 @@ async def process_result(actual_number, period):
     is_win = (actual_size == current_prediction)
     is_jackpot = (actual_number in current_numbers)
     
-    status_text = ""
-
     if is_jackpot or is_win:
         win_count += 1
         loss_streak = 0
-        status_text = "WIN"
         if is_jackpot: jackpot_count += 1
         
         msg = f"✨ <b>PERIOD {period} RESULT</b> ✨\n━━━━━━━━━━━━━━━━━━━━\n🎲 <b>Winning Number:</b> <code>{actual_number}</code> ({actual_size})\n🎯 <b>Status:</b> 🎉 <b>SUCCESSFUL WIN!</b>"
@@ -182,7 +163,6 @@ async def process_result(actual_number, period):
     else:
         loss_count += 1
         loss_streak += 1
-        status_text = "LOSS"
         
         if loss_streak >= 3:
             loss_streak = 0
@@ -196,17 +176,16 @@ async def process_result(actual_number, period):
         'pred': current_prediction,
         'act_num': actual_number,
         'act_size': actual_size,
-        'status': status_text
+        'status': 'WIN' if is_win else 'LOSS'
     })
 
     if len(recent_signals_history) >= 10:
         await send_10_games_report()
 
-# --- Main Loop ---
 async def main_loop():
     global last_processed_id, current_prediction, current_numbers, current_win_rate, loss_streak
     
-    print("🚀 TK Club Ultra VIP Global V7 Bot Started Successfully...")
+    logger.info("🚀 TK Club Ultra VIP Global V7 Bot Started Successfully...")
     
     while True:
         try:
@@ -241,8 +220,24 @@ async def main_loop():
         
         await asyncio.sleep(5)
 
+# Flask App
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "✅ TK Club Bot is Running!"
+
+@app.route('/start')
+def start():
+    def run_bot():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(main_loop())
+    
+    thread = threading.Thread(target=run_bot)
+    thread.daemon = True
+    thread.start()
+    return "🤖 Bot Started Successfully!"
+
 if __name__ == "__main__":
-    try:
-        asyncio.run(main_loop())
-    except KeyboardInterrupt:
-        print("Stopped.")
+    app.run(host="0.0.0.0", port=10000)
